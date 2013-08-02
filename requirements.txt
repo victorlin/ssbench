@@ -6,3 +6,4 @@ gevent_zeromq
 msgpack-python
 Mako
 statlib
+PyYaml

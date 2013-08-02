@@ -14,13 +14,13 @@
 # limitations under the License.
 
 import copy
-import json
 import random
 import signal
 import logging
 import msgpack
 import itertools
 
+import yaml
 import ssbench
 from ssbench.ordered_dict import OrderedDict
 
@@ -48,7 +48,7 @@ class Scenario(object):
         elif scenario_filename is not None:
             try:
                 fp = open(scenario_filename)
-                self._scenario_data = json.load(fp)
+                self._scenario_data = yaml.load(fp)
             except:
                 logging.exception('Error loading scenario file %r',
                                   scenario_filename)
