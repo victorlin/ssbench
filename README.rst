@@ -81,7 +81,7 @@ and how that works...
 Scenarios
 ---------
 
-A "scenario" (sometimes called a "CRUD scenario") is a utf8-encoded JSON file
+A "scenario" (sometimes called a "CRUD scenario") is a utf8-encoded YAML_ file
 defining a benchmark run.  Specifically, it defines:
 
 - A ``name`` for the scenario (an arbitrary string)
@@ -153,30 +153,24 @@ CRUD profile is included in the report on the "CRUD weighted average" line.
 ``ssbench`` comes with a few canned scenarios, but users are encouraged to
 experiment and define their own.
 
-Here is an example JSON scenario file::
+Here is an example YAML_ scenario file::
 
-  {
-    "name": "Small test scenario",
-    "sizes": [{
-      "name": "tiny",
-      "size_min": 4096,
-      "size_max": 65536
-    }, {
-      "name": "small",
-      "size_min": 100000,
-      "size_max": 200000
-    }],
-    "initial_files": {
-      "tiny": 100,
-      "small": 10
-    },
-    "operation_count": 500,
-    "crud_profile": [3, 4, 2, 2],
-    "user_count": 7
-  }
+  name: Small test scenario
+  sizes: 
+  - name: tiny
+    size_min: 4096
+    size_max: 65536
+  - name: small
+    size_min: 100000
+    size_max: 200000
+  initial_files:
+    tiny: 100
+    small: 10
+  operation_count: 500
+  crud_profile: [3, 4, 2, 2]
+  user_count: 7
 
-**Beware:** hand-editing JSON is error-prone.  Watch out for trailing
-commas, in particular.
+.. _`YAML`: http://www.yaml.org/
 
 Usage
 -----
