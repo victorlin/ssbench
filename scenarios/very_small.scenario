@@ -1,14 +1,14 @@
 name: Small test scenario
 sizes: 
 - name: tiny
-  size_max: 8192
   size_min: 4096
+  size_max: 8192
 - name: small
-  size_max: 40000
   size_min: 20000
+  size_max: 40000
 initial_files:   
-  small: 10
   tiny: 100
+  small: 10
 container_count: 100
 container_base: ssbench
 container_concurrency: 10

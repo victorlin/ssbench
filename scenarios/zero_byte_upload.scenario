@@ -1,8 +1,8 @@
 name: Zero-byte upload test
 sizes: 
 - name: zero
-  size_max: 0
   size_min: 0
+  size_max: 0
 initial_files:   
   zero: 1
 container_count: 100

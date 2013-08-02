@@ -1,22 +1,22 @@
 name: Large test scenario
 sizes: 
 - name: tiny
-  size_max: 16000
   size_min: 1000
+  size_max: 16000
 - name: small
-  size_max: 200000
   size_min: 100000
+  size_max: 200000
 - name: medium
-  size_max: 2000000
   size_min: 1000000
+  size_max: 2000000
 - name: large
-  size_max: 100000000
   size_min: 50000000
+  size_max: 100000000
 initial_files:   
-  large: 10
-  medium: 15
-  small: 40
   tiny: 60
+  small: 40
+  medium: 15
+  large: 10
 container_count: 100
 container_base: ssbench
 container_concurrency: 10
