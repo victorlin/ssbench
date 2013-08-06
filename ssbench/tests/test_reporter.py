@@ -1190,3 +1190,43 @@ Distribution of requests per worker-ID:  4.000 -   5.000 (avg:   4.333; stddev: 
             'delete_last_large_50_pctile': '0.4',
             'delete_last_large_worst_txid': 'txID007',
         }], csv_data)
+
+
+class TestLatencyHistogramProcessor(TestCase):
+
+    def make_one(self, *args, **kwargs):
+        from ssbench.reporter import LatencyHistogramProcessor
+        return LatencyHistogramProcessor(*args, **kwargs)
+
+    def test_process_histogram(self):
+        hrange = [20, 50, 100, 500, 1000]
+        lhp = self.make_one(hrange)
+        lhp.initialize()
+
+        # feed 20 to <20ms
+        for i in range(20):
+            lhp.process(dict(type='test', last_byte_latency=i))
+        # feed 30 to <50ms
+        for i in range(20, 50):
+            lhp.process(dict(type='test', last_byte_latency=i))
+        # feed 50 to <100ms
+        for i in range(50, 100):
+            lhp.process(dict(type='test', last_byte_latency=i))
+        # feed 400 to <500ms
+        for i in range(100, 500):
+            lhp.process(dict(type='test', last_byte_latency=i))
+        # feed 500 to <1000ms
+        for i in range(500, 1000):
+            lhp.process(dict(type='test', last_byte_latency=i))
+        # feed 1000 to >=1000ms
+        for i in range(1000, 2000):
+            lhp.process(dict(type='test', last_byte_latency=i))
+
+        stats = {}
+        lhp.output(stats, key='output')
+        output = stats['output']['test']
+
+        expected_histogram = [20, 30, 50, 400, 500, 1000]
+        self.assertEqual(output['range'], hrange)
+        self.assertEqual(output['total'], sum(expected_histogram))
+        self.assertEqual(output['histogram'], expected_histogram)

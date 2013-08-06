@@ -42,13 +42,13 @@ class LatencyHistogramProcessor:
                 <20ms, <50ms, <100ms, <500ms, <1000ms, >=1000ms
         """
         self.histogram_range = histogram_range
-        # mapping from type to histogram
-        self._type2histogram = {}
 
     def initialize(self):
         """Called to initialize report processing
 
         """
+        # mapping from type to histogram
+        self._type2histogram = {}
 
     def process(self, result):
         """Result data will be feeded into this
@@ -57,8 +57,7 @@ class LatencyHistogramProcessor:
         rtype = result['type']
         histogram = self._type2histogram.setdefault(rtype, [])
         if not histogram:
-            histogram = [0] * (len(self.histogram_range) + 1)
-
+            histogram.extend([0] * (len(self.histogram_range) + 1))
         # TODO: should exception to be added to total?
         if 'exception' in result:
             return
