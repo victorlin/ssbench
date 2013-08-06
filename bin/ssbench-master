@@ -29,7 +29,8 @@ import ssbench
 import ssbench.worker
 import ssbench.swift_client as client
 from ssbench.master import Master
-from ssbench.reporter import Reporter, LatencyHistogramProcessor, LatencyHistogramReport
+from ssbench.reporter import Reporter
+from ssbench.reporter.latency_histogram import LatencyHistogramProcessor, LatencyHistogramReport
 from ssbench.scenario import Scenario, ScenarioNoop
 from ssbench.run_results import RunResults
 

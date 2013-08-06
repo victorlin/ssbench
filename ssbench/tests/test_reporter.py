@@ -1195,13 +1195,12 @@ Distribution of requests per worker-ID:  4.000 -   5.000 (avg:   4.333; stddev: 
 class TestLatencyHistogramProcessor(TestCase):
 
     def make_one(self, *args, **kwargs):
-        from ssbench.reporter import LatencyHistogramProcessor
+        from ssbench.reporter.latency_histogram import LatencyHistogramProcessor
         return LatencyHistogramProcessor(*args, **kwargs)
 
     def test_process_histogram(self):
         hrange = [20, 50, 100, 500, 1000]
         lhp = self.make_one(hrange)
-        lhp.initialize()
 
         # feed 20 to <20ms
         for i in range(20):
