@@ -14,15 +14,18 @@ class LatencyHistogramProcessor:
                 <20ms, <50ms, <100ms, <500ms, <1000ms, >=1000ms
         """
         self.histogram_range = histogram_range
-        # mapping from type to histogram
-        self._type2histogram = {}
+        # mapping from crud type to a dict which mapping
+        # from size string to histogram
+        self._type2size2histogram = {}
 
     def process(self, result):
         """Result data will be feeded into this
 
         """
         crud_type = result['type']
-        histogram = self._type2histogram.setdefault(crud_type, [])
+        size_str = result['size_str']
+        size_map = self._type2size2histogram.setdefault(crud_type, {})
+        histogram = size_map.setdefault(size_str, [])
         if not histogram:
             histogram.extend([0] * (len(self.histogram_range) + 1))
         # TODO: should exception to be added to total?
@@ -46,22 +49,32 @@ class LatencyHistogramProcessor:
         The output should be in follow format
 
             {
-                CREATE_OBJECT: { # keys are CRUD constants: CREATE_OBJECT, READ_OBJECT, etc.
-                    'range': [10, 20 50, 100] # the input histogram range
-                    'histogram': [4, 3, 0, 0, 0], # the latency histogram
-                    'total': 7 # the total record number
-                },
-                # ...
+                range: [10, 20 50, 100], # the input histogram range
+                types:
+                    CREATE_OBJECT: { # keys are CRUD constants: CREATE_OBJECT,
+                                     # READ_OBJECT, etc.
+                        tiny: { # the size string e.g. tiny, small and large
+                            histogram: [4, 3, 0, 0, 0], # the latency histogram
+                            total: 7 # the total record number
+                        },
+                        # ...
+                    },
+                    # ...
+                }
             }
         """
         key = key or self.REPORT_NAME
-        output = {}
-        for crud_type, histogram in self._type2histogram.iteritems():
-            output[crud_type] = dict(
-                total=sum(histogram),
-                range=self.histogram_range[:],
-                histogram=histogram[:],
-            )
+        output = dict(range=self.histogram_range[:])
+        types = {}
+        for crud_type, size2histogram in self._type2size2histogram.iteritems():
+            size_map = {}
+            for size_str, histogram in size2histogram.iteritems():
+                size_map[size_str] = dict(
+                    total=sum(histogram),
+                    histogram=histogram[:],
+                )
+            types[crud_type] = size_map
+        output['types'] = types
         stats[key] = output
 
 
@@ -70,7 +83,7 @@ class LatencyHistogramReport:
     def __init__(self, output):
         self.output = output
 
-    def _report_one(self, crud_type, data):
+    def _report_one(self, header, crud_type, data):
         type_name_map = {
             ssbench.CREATE_OBJECT: 'CREATE',
             ssbench.READ_OBJECT: 'READ',
@@ -79,18 +92,24 @@ class LatencyHistogramReport:
         }
         type_name = type_name_map[crud_type]
         print >> self.output, '%s; total latency' % type_name
-        terms = ['< %sms' % n for n in data['range']]
-        terms.append('>= %sms' % data['range'][-1])
-        column = ['%12s' % t for t in ['Count'] + terms]
-        print >> self.output, ''.join(column)
-        column = ['%12s' % t for t in [data['total']] + data['histogram']]
-        print >> self.output, ''.join(column)
+        print >> self.output, ''.join(header)
+        # TODO: maybe we should sort the size
+        for size, item in data.iteritems():
+            column = ['%12s' % t for t in [size, item['total']] + item['histogram']]
+            print >> self.output, ''.join(column)
 
-    def __call__(self, record):
+    def __call__(self, data):
         # TODO: may be we should use mako template here
         print >>self.output, 'Latency Histogram\n'
+
+        types = data['types']
+
+        terms = ['< %sms' % n for n in data['range']]
+        terms.append('>= %sms' % data['range'][-1])
+        header = ['%12s' % t for t in ['Size', 'Count'] + terms]
+
         for crud_type in [ssbench.CREATE_OBJECT, ssbench.READ_OBJECT,
                           ssbench.UPDATE_OBJECT, ssbench.DELETE_OBJECT]:
-            if crud_type not in record:
+            if crud_type not in types:
                 continue
-            self._report_one(crud_type, record[crud_type])
+            self._report_one(header, crud_type, types[crud_type])

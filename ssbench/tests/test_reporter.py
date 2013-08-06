@@ -1202,30 +1202,39 @@ class TestLatencyHistogramProcessor(TestCase):
         hrange = [20, 50, 100, 500, 1000]
         lhp = self.make_one(hrange)
 
+        def feed(i):
+            lhp.process(dict(type='test', size_str='small', last_byte_latency=i))
+
         # feed 20 to <20ms
-        for i in range(20):
-            lhp.process(dict(type='test', last_byte_latency=i))
+        map(feed, range(20))
         # feed 30 to <50ms
-        for i in range(20, 50):
-            lhp.process(dict(type='test', last_byte_latency=i))
+        map(feed, range(20, 50))
         # feed 50 to <100ms
-        for i in range(50, 100):
-            lhp.process(dict(type='test', last_byte_latency=i))
+        map(feed, range(50, 100))
         # feed 400 to <500ms
-        for i in range(100, 500):
-            lhp.process(dict(type='test', last_byte_latency=i))
+        map(feed, range(100, 500))
         # feed 500 to <1000ms
-        for i in range(500, 1000):
-            lhp.process(dict(type='test', last_byte_latency=i))
+        map(feed, range(500, 1000))
         # feed 1000 to >=1000ms
-        for i in range(1000, 2000):
-            lhp.process(dict(type='test', last_byte_latency=i))
+        map(feed, range(1000, 2000))
 
         stats = {}
         lhp.output(stats, key='output')
-        output = stats['output']['test']
+
+        self.maxDiff = None
 
         expected_histogram = [20, 30, 50, 400, 500, 1000]
-        self.assertEqual(output['range'], hrange)
-        self.assertEqual(output['total'], sum(expected_histogram))
-        self.assertEqual(output['histogram'], expected_histogram)
+        expected = dict(
+            range=hrange,
+            types=dict(
+                # crud type
+                test=dict(
+                    # size
+                    small=dict(
+                        total=sum(expected_histogram),
+                        histogram=expected_histogram
+                    )
+                )
+            )
+        )
+        self.assertEqual(stats['output'], expected)
