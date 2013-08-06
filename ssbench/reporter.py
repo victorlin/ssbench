@@ -29,8 +29,86 @@ from ssbench.ordered_dict import OrderedDict
 REPORT_TIME_FORMAT = '%F %T UTC'
 
 
+class LatencyHistogramProcessor:
+    REPORT_NAME = 'latency_histogram'
+
+    def __init__(self, histogram_range):
+        """Initialize processor
+
+        :param histogram_range: The range of histogram interval
+            It should be a list of interger, the unit is in ms.
+            For example, [20, 50, 100, 500, 1000] stands for the ranges as
+
+                <20ms, <50ms, <100ms, <500ms, <1000ms, >=1000ms
+        """
+        self.histogram_range = histogram_range
+        # mapping from type to histogram
+        self._type2histogram = {}
+
+    def initialize(self):
+        """Called to initialize report processing
+
+        """
+
+    def process(self, result):
+        """Result data will be feeded into this
+
+        """
+        rtype = result['type']
+        histogram = self._type2histogram.setdefault(rtype, [])
+        if not histogram:
+            histogram = [0] * (len(self.histogram_range) + 1)
+
+        # TODO: should exception to be added to total?
+        if 'exception' in result:
+            return
+
+        # TODO: what about first byte latency?
+        found = False
+        last_byte_latency = result['last_byte_latency']
+        for i, edge in enumerate(self.histogram_range):
+            if last_byte_latency < edge:
+                histogram[i] += 1
+                found = True
+                break
+        if not found:
+            histogram[-1] += 1
+
+    def finalized(self):
+        """Called to finalize report processing
+
+        """
+
+    def output(self, stats, key=None):
+        """Output processing result to stats dict
+
+        The output should be in follow format
+
+            {
+                CREATE_OBJECT: { # keys are CRUD constants: CREATE_OBJECT, READ_OBJECT, etc.
+                    'range': [10, 20 50, 100] # the input histogram range
+                    'histogram': [4, 3, 0, 0, 0], # the latency histogram
+                    'total': 7 # the total record number
+                },
+                # ...
+            }
+        """
+        key = key or self.REPORT_NAME
+        output = {}
+        for rtype, histogram in self._type2histogram.iteritems():
+            output[rtype] = dict(
+                total=sum(histogram),
+                range=self.histogram_range[:],
+                histogram=histogram[:],
+            )
+        stats[key] = output
+
+
 class Reporter:
-    def __init__(self, run_results):
+    def __init__(self, run_results, processors=None):
+        self.processors = processors
+        if self.processors is None:
+            self.processors = []
         self.run_results = run_results
 
     def read_results(self, nth_pctile=95, format_numbers=True):
@@ -333,8 +411,17 @@ Distribution of requests per worker-ID: ${jobs_per_worker_stats['min']} - ${jobs
             op_stats=op_stats,
             size_stats=OrderedDict.fromkeys(
                 self.scenario.sizes_by_name.keys()))
+
+        # initialize all report processors
+        for processor in self.processors:
+            processor.initialize()
+
         for results in self.unpacker:
             for result in results:
+
+                for processor in self.processors:
+                    processor.process(result)
+
                 completion_time = int(result['completed_at'])
                 if 'exception' in result:
                     # report log exceptions
@@ -376,6 +463,10 @@ Distribution of requests per worker-ID: ${jobs_per_worker_stats['min']} - ${jobs
                     type_stats['size_stats'][result['size_str']] = {}
                 self._add_result_to(
                     type_stats['size_stats'][result['size_str']], result)
+
+        # finalize all report processors
+        for processor in self.processors:
+            processor.finalize()
 
         agg_stats['worker_count'] = len(stats['worker_stats'].keys())
         self._compute_req_per_sec(agg_stats)
@@ -425,6 +516,10 @@ Distribution of requests per worker-ID: ${jobs_per_worker_stats['min']} - ${jobs
                                     start_time=start_time,
                                     stop=completion_time_max,
                                     data=time_series_data)
+
+        # output data from all processor
+        for processor in self.processors:
+            processor.output(stats)
 
         return stats
 
