@@ -30,7 +30,7 @@ import ssbench.worker
 import ssbench.swift_client as client
 from ssbench.master import Master
 from ssbench.reporter import Reporter
-from ssbench.reporter.latency_histogram import LatencyHistogramProcessor, LatencyHistogramReport
+from ssbench.reporter.latency_histogram import LatencyHistogramProcessor
 from ssbench.scenario import Scenario, ScenarioNoop
 from ssbench.run_results import RunResults
 
@@ -299,14 +299,15 @@ def report_scenario(args):
 
     processors = []
     if args.latency_histogram:
+        # TODO: let user decide the histogram interval
         processors.append(LatencyHistogramProcessor([20, 50, 100, 500, 1000]))
 
     run_results = RunResults(args.stats_file)
     reporter = Reporter(run_results, processors)
 
     format_numbers = not args.csv
-    reporter.read_results(nth_pctile=args.pctile,
-                          format_numbers=format_numbers)
+    processor_map = reporter.read_results(nth_pctile=args.pctile,
+                                          format_numbers=format_numbers)
 
     default_report = reporter.generate_default_report(output_csv=args.csv)
     args.report_file.write(default_report)
@@ -317,8 +318,8 @@ def report_scenario(args):
         # (i.e. "-")
 
     if args.latency_histogram:
-        report = LatencyHistogramReport(sys.stderr)
-        report(reporter.stats[LatencyHistogramProcessor.REPORT_NAME])
+        p = processor_map[LatencyHistogramProcessor.REPORT_NAME]
+        args.report_file.write(p.as_text(reporter.scenario))
 
     if args.profile:
         prof.disable()
@@ -565,7 +566,7 @@ be generated, with the default being a "textual summary".
         help='Also write a CSV file with requests completed per second '
         'histogram data')
     report_scenario_arg_parser.add_argument(
-        '-l', '--latency-histogram', action='store_true', 
+        '-l', '--latency-histogram', action='store_true',
         help='Report a latency histogram')
     report_scenario_arg_parser.add_argument(
         '--profile', action='store_true', default=False,

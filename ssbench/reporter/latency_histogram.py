@@ -1,3 +1,5 @@
+import StringIO
+
 import ssbench
 
 
@@ -43,7 +45,7 @@ class LatencyHistogramProcessor:
         if not found:
             histogram[-1] += 1
 
-    def output(self, stats, key=None):
+    def get_data_dict(self):
         """Output processing result to stats dict
 
         The output should be in follow format
@@ -63,7 +65,6 @@ class LatencyHistogramProcessor:
                 }
             }
         """
-        key = key or self.REPORT_NAME
         output = dict(range=self.histogram_range[:])
         types = {}
         for crud_type, size2histogram in self._type2size2histogram.iteritems():
@@ -75,12 +76,23 @@ class LatencyHistogramProcessor:
                 )
             types[crud_type] = size_map
         output['types'] = types
-        stats[key] = output
+        return output
+
+    def as_text(self, scenario):
+        """Return as a text
+
+        """
+        data = self.get_data_dict()
+        str_io = StringIO.StringIO()
+        report = TextLatencyHistogramReport(scenario, str_io)
+        report(data)
+        return str_io.getvalue()
 
 
-class LatencyHistogramReport:
+class TextLatencyHistogramReport:
 
-    def __init__(self, output):
+    def __init__(self, scenario, output):
+        self.scenario = scenario
         self.output = output
 
     def _report_one(self, header, crud_type, data):
@@ -93,8 +105,11 @@ class LatencyHistogramReport:
         type_name = type_name_map[crud_type]
         print >> self.output, '%s; total latency' % type_name
         print >> self.output, ''.join(header)
-        # TODO: maybe we should sort the size
-        for size, item in data.iteritems():
+        size_keys = self.scenario.sizes_by_name.keys()
+        for size in size_keys:
+            if size not in data:
+                continue
+            item = data[size]
             column = ['%12s' % t for t in [size, item['total']] + item['histogram']]
             print >> self.output, ''.join(column)
 

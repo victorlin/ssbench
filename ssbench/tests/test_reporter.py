@@ -1218,11 +1218,7 @@ class TestLatencyHistogramProcessor(TestCase):
         # feed 1000 to >=1000ms
         map(feed, range(1000, 2000))
 
-        stats = {}
-        lhp.output(stats, key='output')
-
-        self.maxDiff = None
-
+        output = lhp.get_data_dict()
         expected_histogram = [20, 30, 50, 400, 500, 1000]
         expected = dict(
             range=hrange,
@@ -1237,4 +1233,4 @@ class TestLatencyHistogramProcessor(TestCase):
                 )
             )
         )
-        self.assertEqual(stats['output'], expected)
+        self.assertEqual(output, expected)

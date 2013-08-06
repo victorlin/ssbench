@@ -39,6 +39,8 @@ class Reporter:
     def read_results(self, nth_pctile=95, format_numbers=True):
         self.scenario, self.unpacker = self.run_results.read_results()
         self.stats = self.calculate_scenario_stats(nth_pctile, format_numbers)
+        processor_map = dict([(p.REPORT_NAME, p) for p in self.processors])
+        return processor_map
 
     def write_rps_histogram(self, target_file):
         target_file.write('"Seconds Since Start","Requests Completed"\n')
@@ -433,10 +435,6 @@ Distribution of requests per worker-ID: ${jobs_per_worker_stats['min']} - ${jobs
                                     start_time=start_time,
                                     stop=completion_time_max,
                                     data=time_series_data)
-
-        # output data from all processor
-        for processor in self.processors:
-            processor.output(stats)
 
         return stats
 
