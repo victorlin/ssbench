@@ -29,7 +29,7 @@ import ssbench
 import ssbench.worker
 import ssbench.swift_client as client
 from ssbench.master import Master
-from ssbench.reporter import Reporter
+from ssbench.reporter import Reporter, LatencyHistogramProcessor, LatencyHistogramReport
 from ssbench.scenario import Scenario, ScenarioNoop
 from ssbench.run_results import RunResults
 
@@ -296,8 +296,12 @@ def report_scenario(args):
         prof = cProfile.Profile()
         prof.enable()
 
+    processors = []
+    if args.latency_histogram:
+        processors.append(LatencyHistogramProcessor([20, 50, 100, 500, 1000]))
+
     run_results = RunResults(args.stats_file)
-    reporter = Reporter(run_results)
+    reporter = Reporter(run_results, processors)
 
     format_numbers = not args.csv
     reporter.read_results(nth_pctile=args.pctile,
@@ -310,6 +314,10 @@ def report_scenario(args):
         reporter.write_rps_histogram(args.rps_histogram)
         # Note: not explicitly closing here in case it's redirected to STDOUT
         # (i.e. "-")
+
+    if args.latency_histogram:
+        report = LatencyHistogramReport(sys.stderr)
+        report(reporter.stats[LatencyHistogramProcessor.REPORT_NAME])
 
     if args.profile:
         prof.disable()
@@ -555,6 +563,9 @@ be generated, with the default being a "textual summary".
         '-r', '--rps-histogram', type=argparse.FileType('w'),
         help='Also write a CSV file with requests completed per second '
         'histogram data')
+    report_scenario_arg_parser.add_argument(
+        '-l', '--latency-histogram', action='store_true', 
+        help='Report a latency histogram')
     report_scenario_arg_parser.add_argument(
         '--profile', action='store_true', default=False,
         help='Profile the report generation.')

@@ -54,8 +54,8 @@ class LatencyHistogramProcessor:
         """Result data will be feeded into this
 
         """
-        rtype = result['type']
-        histogram = self._type2histogram.setdefault(rtype, [])
+        crud_type = result['type']
+        histogram = self._type2histogram.setdefault(crud_type, [])
         if not histogram:
             histogram.extend([0] * (len(self.histogram_range) + 1))
         # TODO: should exception to be added to total?
@@ -73,11 +73,6 @@ class LatencyHistogramProcessor:
         if not found:
             histogram[-1] += 1
 
-    def finalized(self):
-        """Called to finalize report processing
-
-        """
-
     def output(self, stats, key=None):
         """Output processing result to stats dict
 
@@ -94,13 +89,44 @@ class LatencyHistogramProcessor:
         """
         key = key or self.REPORT_NAME
         output = {}
-        for rtype, histogram in self._type2histogram.iteritems():
-            output[rtype] = dict(
+        for crud_type, histogram in self._type2histogram.iteritems():
+            output[crud_type] = dict(
                 total=sum(histogram),
                 range=self.histogram_range[:],
                 histogram=histogram[:],
             )
         stats[key] = output
+
+
+class LatencyHistogramReport:
+
+    def __init__(self, output):
+        self.output = output
+
+    def _report_one(self, crud_type, data):
+        type_name_map = {
+            ssbench.CREATE_OBJECT: 'CREATE',
+            ssbench.READ_OBJECT: 'READ',
+            ssbench.UPDATE_OBJECT: 'UPDATE',
+            ssbench.DELETE_OBJECT: 'DELETE',
+        }
+        type_name = type_name_map[crud_type]
+        print >> self.output, '%s; total latency' % type_name
+        terms = ['< %sms' % n for n in data['range']]
+        terms.append('>= %sms' % data['range'][-1])
+        column = ['%12s' % t for t in ['Count'] + terms]
+        print >> self.output, ''.join(column)
+        column = ['%12s' % t for t in [data['total']] + data['histogram']]
+        print >> self.output, ''.join(column)
+
+    def __call__(self, record):
+        # TODO: may be we should use mako template here
+        print >>self.output, 'Latency Histogram\n'
+        for crud_type in [ssbench.CREATE_OBJECT, ssbench.READ_OBJECT,
+                          ssbench.UPDATE_OBJECT, ssbench.DELETE_OBJECT]:
+            if crud_type not in record:
+                continue
+            self._report_one(crud_type, record[crud_type])
 
 
 class Reporter:
@@ -462,10 +488,6 @@ Distribution of requests per worker-ID: ${jobs_per_worker_stats['min']} - ${jobs
                     type_stats['size_stats'][result['size_str']] = {}
                 self._add_result_to(
                     type_stats['size_stats'][result['size_str']], result)
-
-        # finalize all report processors
-        for processor in self.processors:
-            processor.finalize()
 
         agg_stats['worker_count'] = len(stats['worker_stats'].keys())
         self._compute_req_per_sec(agg_stats)
