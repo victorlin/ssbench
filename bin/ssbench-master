@@ -300,8 +300,9 @@ def report_scenario(args):
 
     processors = []
     if args.latency_histogram:
-        # TODO: let user decide the histogram interval
-        processors.append(LatencyHistogramProcessor([20, 50, 100, 500, 1000]))
+        parts = args.latency_histogram_range.split(',')
+        histogram_range = map(int, parts)
+        processors.append(LatencyHistogramProcessor(histogram_range))
 
     run_results = RunResults(args.stats_file)
     reporter = Reporter(run_results, processors)
@@ -569,6 +570,9 @@ be generated, with the default being a "textual summary".
     report_scenario_arg_parser.add_argument(
         '-l', '--latency-histogram', action='store_true',
         help='Report a latency histogram')
+    report_scenario_arg_parser.add_argument(
+        '-lr', '--latency-histogram-range', type=str, metavar='LATENCY_HISTOGRAM_RANGE', 
+        default='20, 50, 100, 500, 1000', help='Set latency histogram range')
     report_scenario_arg_parser.add_argument(
         '--profile', action='store_true', default=False,
         help='Profile the report generation.')
