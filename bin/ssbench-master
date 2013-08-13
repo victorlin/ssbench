@@ -254,6 +254,7 @@ def run_scenario(args):
         args.stats_file = stats_file_path
         args.report_file = sys.stdout
         args.rps_histogram = None
+        args.latency_histogram = False
         report_scenario(args)
 
     # Wait for gzipping to finish
